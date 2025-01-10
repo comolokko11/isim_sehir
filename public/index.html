@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>İsim-Şehir-Hayvan Oyunu (Host)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+            background-color: #f4f4f4;
+        }
+        .container {
+            margin-top: 50px;
+        }
+        input[type="text"], input[type="number"] {
+            padding: 10px;
+            margin: 5px;
+            width: 200px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #category-list {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>İsim-Şehir-Hayvan Oyunu - Host</h1>
+        <h3>Kategorileri ve süreyi ayarlayın</h3>
+        
+        <div id="category-list">
+            <input type="text" class="category-input" placeholder="Kategori Adı" />
+            <button onclick="addCategory()">Kategori Ekle</button>
+        </div>
+        
+        <br />
+        
+        <input type="number" id="duration" placeholder="Süre (saniye)" />
+        
+        <button onclick="createLobby()">Lobi Oluştur</button>
+        <h3>Oyun Linki:</h3>
+        <p id="lobby-link"></p>
+        
+        <button onclick="startGame()">Oyunu Başlat</button>
+        <button onclick="endGame()">Oyunu Bitir</button> <!-- Oyunu bitir butonu -->
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let lobbyId = '';
+        let categories = [];
+        let duration = 0;
+
+        function addCategory() {
+            const categoryInput = document.querySelector('.category-input');
+            if (categoryInput.value.trim() !== '') {
+                categories.push(categoryInput.value);
+                categoryInput.value = ''; // Input kutusunu temizle
+                displayCategories();
+            }
+        }
+
+        function displayCategories() {
+            const categoryList = document.getElementById('category-list');
+            categoryList.innerHTML = '<input type="text" class="category-input" placeholder="Kategori Adı" /><button onclick="addCategory()">Kategori Ekle</button><br />';
+            categories.forEach((category, index) => {
+                categoryList.innerHTML += `<div>${category} <button onclick="removeCategory(${index})">Sil</button></div>`;
+            });
+        }
+
+        function removeCategory(index) {
+            categories.splice(index, 1);
+            displayCategories();
+        }
+
+        function createLobby() {
+            duration = document.getElementById('duration').value;
+            socket.emit('create-lobby', categories, duration);
+        }
+
+        socket.on('lobby-created', (newLobbyId) => {
+            lobbyId = newLobbyId;
+            document.getElementById('lobby-link').textContent = `http://localhost:3000/lobby/${lobbyId}`;
+        });
+
+        function startGame() {
+            socket.emit('start-game');
+        }
+
+        function endGame() {
+            socket.emit('end-game'); // Oyunu bitir ve sonuçları göster
+        }
+    </script>
+</body>
+</html>
