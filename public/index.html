@@ -57,9 +57,11 @@
         <button onclick="startGame()">Oyunu Başlat</button>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
+    <!-- Socket.IO CDN bağlantısı -->
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+
     <script>
-        const socket = io();
+        const socket = io();  // Socket.IO bağlantısı başlatılıyor
         let lobbyId = '';
         let categories = [];
         let duration = 0;
