@@ -43,7 +43,7 @@
         
         <div id="category-list">
             <input type="text" class="category-input" placeholder="Kategori Adı" />
-            <button onclick="addCategory()">Kategori Ekle</button>
+            <button id="add-category-btn">Kategori Ekle</button>
         </div>
         
         <br />
@@ -55,7 +55,6 @@
         <p id="lobby-link"></p>
         
         <button onclick="startGame()">Oyunu Başlat</button>
-        <button onclick="endGame()">Oyunu Bitir</button> <!-- Oyunu bitir butonu -->
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -65,6 +64,7 @@
         let categories = [];
         let duration = 0;
 
+        // Kategori ekleme fonksiyonu
         function addCategory() {
             const categoryInput = document.querySelector('.category-input');
             if (categoryInput.value.trim() !== '') {
@@ -74,36 +74,39 @@
             }
         }
 
+        // Kategorileri görüntüleme fonksiyonu
         function displayCategories() {
             const categoryList = document.getElementById('category-list');
-            categoryList.innerHTML = '<input type="text" class="category-input" placeholder="Kategori Adı" /><button onclick="addCategory()">Kategori Ekle</button><br />';
+            categoryList.innerHTML = '<input type="text" class="category-input" placeholder="Kategori Adı" /><button id="add-category-btn">Kategori Ekle</button><br />';
             categories.forEach((category, index) => {
                 categoryList.innerHTML += `<div>${category} <button onclick="removeCategory(${index})">Sil</button></div>`;
             });
         }
 
+        // Kategori silme fonksiyonu
         function removeCategory(index) {
             categories.splice(index, 1);
             displayCategories();
         }
 
+        // Lobi oluşturma fonksiyonu
         function createLobby() {
             duration = document.getElementById('duration').value;
             socket.emit('create-lobby', categories, duration);
         }
 
-        socket.on('lobby-created', (newLobbyId) => {
-            lobbyId = newLobbyId;
-            document.getElementById('lobby-link').textContent = `http://localhost:3000/lobby/${lobbyId}`;
-        });
-
+        // Oyunu başlatma fonksiyonu
         function startGame() {
             socket.emit('start-game');
         }
 
-        function endGame() {
-            socket.emit('end-game'); // Oyunu bitir ve sonuçları göster
-        }
+        // Kategori ekle butonuna tıklama olayını dinleyin
+        document.getElementById("add-category-btn").addEventListener("click", addCategory);
+
+        socket.on('lobby-created', (newLobbyId) => {
+            lobbyId = newLobbyId;
+            document.getElementById('lobby-link').textContent = `http://localhost:3000/lobby/${lobbyId}`;
+        });
     </script>
 </body>
 </html>
