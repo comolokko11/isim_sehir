@@ -61,7 +61,11 @@
     <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
 
     <script>
-        const socket = io();  // Socket.IO bağlantısı başlatılıyor
+        // Socket.io bağlantısını long polling ile başlatıyoruz
+        const socket = io('https://isim-sehir.vercel.app', {
+            transports: ['polling', 'websocket']  // Polling'i de ekliyoruz
+        });
+
         let lobbyId = '';
         let categories = [];
         let duration = 0;
@@ -105,6 +109,7 @@
         // Kategori ekle butonuna tıklama olayını dinleyin
         document.getElementById("add-category-btn").addEventListener("click", addCategory);
 
+        // Lobi oluşturulunca oyun linkini göster
         socket.on('lobby-created', (newLobbyId) => {
             lobbyId = newLobbyId;
             document.getElementById('lobby-link').textContent = `http://localhost:3000/lobby/${lobbyId}`;
