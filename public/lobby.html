@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>İsim-Şehir-Hayvan Oyunu (Lobi)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+            background-color: #f4f4f4;
+        }
+        .container {
+            margin-top: 50px;
+        }
+        input[type="text"] {
+            padding: 10px;
+            margin: 5px;
+            width: 200px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #timer {
+            font-size: 20px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>İsim-Şehir-Hayvan Oyunu</h1>
+        <h3>Lobiye Katılın</h3>
+        
+        <input type="text" id="nickname" placeholder="Nickname girin">
+        
+        <br />
+        
+        <button onclick="joinLobby()">Lobiye Katıl</button>
+        
+        <h3>Oyuncular:</h3>
+        <ul id="players-list"></ul>
+        
+        <div id="game" style="display: none;">
+            <h3>Oyun Başladı!</h3>
+            <p>Baş Harf: <span id="letter"></span></p>
+            <div id="answers">
+                <!-- Cevap alanları burada olacak -->
+            </div>
+            <div id="timer">Kalan Süre: <span id="time-left"></span></div>
+            <button onclick="sendAnswers()">Cevapları Gönder</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const urlParams = new URLSearchParams(window.location.search);
+        const lobbyId = urlParams.get('lobbyId');
+
+        function joinLobby() {
+            const nickname = document.getElementById("nickname").value;
+            socket.emit('join-game', nickname, lobbyId);
+        }
+
+        socket.on('welcome', (data) => {
+            document.getElementById('players-list').innerHTML = data.players.map(player => `<li>${player.nickname}</li>`).join('');
+        });
+
+        socket.on('game-start', (data) => {
+            document.getElementById('letter').textContent = data.letter;
+            let answersHTML = '';
+            data.categories.forEach(category => {
+                answersHTML += `<label>${category}: </label><input type="text" id="answer-${category}" /><br>`;
+            });
+            document.getElementById('answers').innerHTML = answersHTML;
+            document.getElementById('game').style.display = 'block';
+            startTimer(data.gameDuration);
+        });
+
+        socket.on('timer-update', (data) => {
+            document.getElementById('time-left').textContent = data.gameDuration + ' saniye';
+        });
+
+        function startTimer(duration) {
+            let timer = duration, minutes, seconds;
+            setInterval(function () {
+                minutes = parseInt(timer / 60, 10);
+                seconds = parseInt(timer % 60, 10);
+                document.getElementById('time-left').textContent = minutes + ':' + (seconds < 10 ? '0' : '') + seconds;
+                if (--timer < 0) {
+                    socket.emit('send-answer', getAnswers());
+                }
+            }, 1000);
+        }
+
+        function getAnswers() {
+            const answers = {};
+            document.querySelectorAll('input[type="text"]').forEach(input => {
+                const category = input.id.replace('answer-', '');
+                answers[category] = input.value;
+            });
+            return answers;
+        }
+
+        function sendAnswers() {
+            const answers = getAnswers();
+            socket.emit('send-answer', { nickname: document.getElementById("nickname").value, answers: answers });
+        }
+
+        socket.on('game-end', (answers) => {
+            let resultHTML = '<h2>Oyun Bitti!</h2>';
+            for (let playerId in answers) {
+                resultHTML += `<h3>${answers[playerId].nickname}'ın Cevapları:</h3>`;
+                for (let category in answers[playerId].data) {
+                    resultHTML += `<p>${category}: ${answers[playerId].data[category]}</p>`;
+                }
+            }
+            document.getElementById('game').innerHTML = resultHTML;
+        });
+    </script>
+</body>
+</html>
