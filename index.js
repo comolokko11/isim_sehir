@@ -1,33 +1,39 @@
+// Gerekli kütüphaneleri dahil et
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 
+// Express uygulamasını başlat
 const app = express();
+
+// HTTP sunucusunu başlat
 const server = http.createServer(app);
+
+// Socket.io bağlantısını başlat
 const io = socketIo(server);
 
 let categories = [];
 let letter = '';
 let players = [];
-let gameStarted = false;
 let gameDuration = 0;
 let gameTimer = null;
 let gameHost = null;
 let answers = {}; // Oyuncuların cevapları
 
-// Sunucuya statik dosyalar yüklemek
+// Sunucuyu çalıştırmak için /public dizinindeki statik dosyaları sun
 app.use(express.static('public'));
 
+// Anasayfayı (index.html) istemciye gönder
 app.get('/', (req, res) => {
     res.sendFile(__dirname + '/public/index.html');
 });
 
-// Lobi sayfasını göstermek
+// Lobi sayfasını (lobby.html) istemciye gönder
 app.get('/lobby/:lobbyId', (req, res) => {
     res.sendFile(__dirname + '/public/lobby.html');
 });
 
-// Host sayfasından oyun başlatma
+// Lobi oluşturma ve oyun başlatma
 app.post('/start-game', (req, res) => {
     if (gameHost) {
         gameStarted = true;
@@ -37,18 +43,14 @@ app.post('/start-game', (req, res) => {
     }
 });
 
-// Oyunun bitmesi için Host tarafından tetiklenecek event
+// Socket.io ile bağlantı kurma
 io.on('connection', (socket) => {
-    console.log('Yeni bir oyuncu bağlandı');
+    console.log('Bir oyuncu bağlandı: ' + socket.id);
 
+    // Oyuncu oyuna katıldığında
     socket.on('join-game', (nickname, lobbyId) => {
-        if (gameStarted) {
-            socket.emit('game-started');
-            return;
-        }
-        // Aynı oyuncunun birden fazla katılmasını engelleme
         if (players.some(player => player.id === socket.id)) {
-            return;
+            return; // Aynı oyuncu birden fazla katılamaz
         }
 
         players.push({ id: socket.id, nickname, lobbyId });
@@ -56,45 +58,50 @@ io.on('connection', (socket) => {
         io.emit('update-players', players);
     });
 
+    // Lobi oluşturulduğunda
     socket.on('create-lobby', (categoriesData, duration) => {
         categories = categoriesData;
-        letter = getRandomLetter(); // Rastgele harf seçimi
+        letter = getRandomLetter(); // Rastgele bir harf seç
         gameDuration = duration;
-        gameHost = socket.id; // Host'u belirle
-        const lobbyId = generateLobbyId();
+        gameHost = socket.id; // Oyunun hostu olarak bu oyuncuyu belirle
+        const lobbyId = generateLobbyId(); // Rastgele bir lobi ID'si oluştur
         socket.emit('lobby-created', lobbyId);
         io.emit('update-players', players);
     });
 
+    // Oyun başladığında
     socket.on('start-game', () => {
         io.emit('game-start', { categories, letter, gameDuration });
     });
 
-    socket.on('end-game', () => {
-        // Oyun bitince tüm oyunculara sonuçları gönder
-        io.emit('game-end', answers); 
-    });
-
+    // Cevapları gönderdiğinde
     socket.on('send-answer', (data) => {
-        answers[socket.id] = { nickname: data.nickname, data: data.answers }; // Cevapları al
+        answers[socket.id] = { nickname: data.nickname, data: data.answers };
         io.emit('receive-answer', { id: socket.id, data });
     });
 
+    // Bağlantı kesildiğinde
     socket.on('disconnect', () => {
         players = players.filter(player => player.id !== socket.id);
         io.emit('update-players', players);
-        delete answers[socket.id]; // Cevaplardan sil
+        delete answers[socket.id]; // Cevaplardan bu oyuncuyu sil
+    });
+
+    // Oyun bitiminde sonuçları gönder
+    socket.on('end-game', () => {
+        io.emit('game-end', answers); // Zaman bittiğinde oyun bitişi
     });
 });
 
-// Oyun sayfası başlatılacak
+// Oyun sayfası başlatılacak (geri sayım fonksiyonu)
 function startGameTimer() {
     gameTimer = setInterval(() => {
         if (gameDuration > 0) {
             gameDuration--;
             io.emit('timer-update', { gameDuration });
         } else {
-            clearInterval(gameTimer);
+            clearInterval(gameTimer); // Zaman bittiğinde geri sayım durur
+            io.emit('game-end', answers); // Oyun bitince sonuçları gönder
         }
     }, 1000);
 }
@@ -105,11 +112,13 @@ function getRandomLetter() {
     return letters[Math.floor(Math.random() * letters.length)];
 }
 
-// Lobi id'si oluşturma (5 karakterli rastgele)
+// Lobi ID'si oluşturma
 function generateLobbyId() {
     return Math.random().toString(36).substr(2, 5).toUpperCase();
 }
 
-server.listen(3000, () => {
-    console.log('Sunucu çalışıyor http://localhost:3000');
+// Sunucuyu başlat
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`Sunucu ${PORT} portunda çalışıyor.`);
 });
